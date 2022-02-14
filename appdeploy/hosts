@@ -1,0 +1,2 @@
+[hosts_to_add_key]
+54.165.36.16 ansible_ssh_port=22 ansible_user=ubuntu
