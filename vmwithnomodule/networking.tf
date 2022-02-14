@@ -106,7 +106,6 @@ resource "aws_instance" "nginx" {
   instance_type          = "t2.micro"
   subnet_id              = aws_subnet.subnet1.id
   vpc_security_group_ids = [aws_security_group.nginx-sg.id]
-  iam_instance_profile   = 
   key_name               = "test_vpc"
   user_data = <<EOF
 #! /bin/bash

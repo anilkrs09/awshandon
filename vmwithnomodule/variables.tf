@@ -49,12 +49,23 @@ variable "project_code" {
   description = "Project code"
 }
 
-variable "domain" {
-  type        = string
-  description = "Domain name"
-}
-
 variable "aws_bucket_prefix" {
   type    = string
   default = "spark"
+}
+
+variable "full_access_users" {
+  type    = list(string)
+  default = []
+
+}
+
+variable "read_only_users" {
+  type    = list(string)
+  default = []
+}
+
+variable "aws_dynamodb_table" {
+  type    = string
+  default = "spark-tfstatelock"
 }

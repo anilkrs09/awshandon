@@ -10,5 +10,7 @@ locals {
     project_code  = var.project_code
    }
 
-   bucket_name = lower("${var.aws_bucket_prefix}-${random_integer.rand.result}")
+   bucket_name         = lower("${var.aws_bucket_prefix}-${random_integer.rand.result}")
+   dynamodb_table_name = "${var.aws_dynamodb_table}-${random_integer.rand.result}"
+   
 }
