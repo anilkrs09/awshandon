@@ -27,32 +27,23 @@ resource "aws_s3_bucket" "state_bucket" {
 }
 
 resource "aws_iam_group" "bucket_full_access" {
-
   name = "${local.bucket_name}-full-access"
-
 }
 
 resource "aws_iam_group" "bucket_read_only" {
-
   name = "${local.bucket_name}-read-only"
-
 }
 
 # Add members to the group
-
 resource "aws_iam_group_membership" "full_access" {
   name = "${local.bucket_name}-full-access"
-
   users = var.full_access_users
-
   group = aws_iam_group.bucket_full_access.name
 }
 
 resource "aws_iam_group_membership" "read_only" {
   name = "${local.bucket_name}-read-only"
-
   users = var.read_only_users
-
   group = aws_iam_group.bucket_read_only.name
 }
 
@@ -108,10 +99,35 @@ resource "aws_iam_group_policy" "read_only" {
 EOF
 }
 
-##################################################################################
-# OUTPUT
-##################################################################################
+# S3 Bucket config#
+resource "aws_iam_role" "allow_e2cinstance" {
+  name = "allow_e2cinstance"
 
+  assume_role_policy = <<EOF
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Action": "sts:AssumeRole",
+      "Principal": {
+        "Service": "ec2.amazonaws.com"
+      },
+      "Effect": "Allow",
+      "Sid": ""
+    }
+  ]
+}
+EOF
+  tags = local.common_tags
+}
+
+resource "aws_iam_instance_profile" "nginx_profile" {
+  name = "nginx_profile"
+  role = aws_iam_role.allow_e2cinstance.name
+  tags = local.common_tags
+}
+
+# OUTPUT
 output "s3_bucket" {
   value = aws_s3_bucket.state_bucket.bucket
 }

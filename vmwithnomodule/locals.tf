@@ -11,6 +11,7 @@ locals {
    }
 
    bucket_name         = lower("${var.aws_bucket_prefix}-${random_integer.rand.result}")
+   datalog_bucket_name = lower("${var.aws_bucket_prefix}-${random_integer.rand.result}")
    dynamodb_table_name = "${var.aws_dynamodb_table}-${random_integer.rand.result}"
    
 }

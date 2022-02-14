@@ -1,9 +1,9 @@
 terraform {
     backend "s3" {
-        bucket         = "spark-33752"
+        bucket         = "spark-49509"
         region         = "us-east-1"
         key            = "networking/terraform.tfstate"
-        dynamodb_table = "spark-tfstatelock-33752"
+        dynamodb_table = "spark-tfstatelock-49509"
         encrypt        = true   
     }
 }

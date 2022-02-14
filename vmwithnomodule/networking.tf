@@ -107,6 +107,7 @@ resource "aws_instance" "nginx" {
   subnet_id              = aws_subnet.subnet1.id
   vpc_security_group_ids = [aws_security_group.nginx-sg.id]
   key_name               = "test_vpc"
+  iam_instance_profile   = aws_iam_instance_profile.nginx_profile.name
   user_data = <<EOF
 #! /bin/bash
 sudo apt-get update
