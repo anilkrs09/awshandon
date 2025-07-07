@@ -1,0 +1,152 @@
+from PyPDF2 import PdfReader
+import pandas as pd
+from flask import Flask, request, render_template, redirect, url_for
+import os
+import psycopg
+from ollama import Client
+
+app = Flask(__name__)
+app.config['UPLOAD_FOLDER'] = 'uploads'
+
+conn = psycopg.connect("postgresql://postgres:postgres@localhost/postgres", autocommit=True)
+
+client = Client()
+os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+
+
+def extract_text_from_file(filepath):
+    ext = os.path.splitext(filepath)[1].lower()
+    text = ""
+
+    if ext == ".pdf":
+        try:
+            reader = PdfReader(filepath)
+            for page in reader.pages:
+                page_text = page.extract_text()
+                if page_text:
+                    text += page_text + "\n"
+        except Exception as e:
+            print(f"[ERROR] PDF read failed: {e}")
+
+    elif ext == ".csv":
+        try:
+            df = pd.read_csv(filepath)
+            text = df.to_string(index=False)
+        except Exception as e:
+            print(f"[ERROR] CSV read failed: {e}")
+
+    else:  # assume .txt or other text file
+        try:
+            with open(filepath, "r", encoding="utf-8") as f:
+                text = f.read()
+        except Exception as e:
+            print(f"[ERROR] Text read failed: {e}")
+
+    return text
+def embed_and_store_text(filepath):
+    text = extract_text_from_file(filepath)
+    if not text.strip():
+        print("[WARN] No text extracted from file.")
+        return
+    try:
+        embedding = client.embeddings(model="nomic-embed-text", prompt=text)["embedding"]
+        with conn.cursor() as cur:
+            cur.execute(
+                "INSERT INTO doc_search (content, embedding, filename) VALUES (%s, %s, %s)",
+                (text, embedding, os.path.basename(filepath))
+            )
+            conn.commit()
+    except Exception as e:
+        print(f"[ERROR] Embedding failed: {e}")
+
+@app.route("/upload", methods=["GET", "POST"])
+def upload():
+    message = None
+    if request.method == "POST":
+        file = request.files["file"]
+        if file and file.filename:
+            filepath = os.path.join(app.config["UPLOAD_FOLDER"], file.filename)
+            file.save(filepath)
+            embed_and_store_text(filepath)
+            message = "File uploaded and embedded successfully."
+    return render_template("upload.html", message=message)
+
+@app.route("/search", methods=["GET", "POST"])
+def search():
+    results = []
+    message = None
+    if request.method == "POST":
+        query = request.form["query"]
+        try:
+            embedding = client.embeddings(model="nomic-embed-text", prompt=query)["embedding"]
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT content, filename
+                    FROM doc_search
+                    ORDER BY embedding <-> %s::vector
+                    LIMIT 5
+                    """,
+                    (embedding,)
+                )
+                rows = cur.fetchall()
+                results = [{"content": row[0], "filename": row[1]} for row in rows]
+        except Exception as e:
+            message = f"Search failed: {e}"
+    return render_template("search.html", results=results, message=message)
+
+if __name__ == "__main__":
+    app.run(debug=True)
+
+
+anikumar43@WKMZT67B4DC2 doc-search % cat templates/search.html 
+<h1>Search Documents</h1>
+<form method="post">
+  <input type="text" name="query" placeholder="Enter search query">
+  <input type="submit" value="Search">
+</form>
+
+{% if message %}
+  <p><strong>{{ message }}</strong></p>
+{% endif %}
+
+{% if results %}
+  <h2>Results</h2>
+  <ul>
+    {% for result in results %}
+      <li><strong>{{ result.filename }}</strong>: {{ result.content[:200] }}...</li>
+    {% endfor %}
+  </ul>
+{% endif %}
+
+
+
+<h1>Search Documents</h1>
+<form method="post">
+  <input type="text" name="query" placeholder="Enter search query">
+  <input type="submit" value="Search">
+</form>
+
+{% if message %}
+  <p><strong>{{ message }}</strong></p>
+{% endif %}
+
+{% if results %}
+  <h2>Results</h2>
+  <ul>
+    {% for result in results %}
+      <li><strong>{{ result.filename }}</strong>: {{ result.content[:200] }}...</li>
+    {% endfor %}
+  </ul>
+{% endif %}
+
+anikumar43@WKMZT67B4DC2 doc-search % cat templates/upload.html 
+<h1>Upload Document</h1>
+<form method="post" enctype="multipart/form-data">
+  <input type="file" name="file">
+  <input type="submit" value="Upload">
+</form>
+
+{% if message %}
+  <p><strong>{{ message }}</strong></p>
+{% endif %}
